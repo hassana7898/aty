@@ -259,7 +259,7 @@ export const PrintRemittanceLayout: React.FC<{
                 <td>
                     {productMap.get(exit.productId) || exit.productId}
                     {/* Display variant here instead of separate column */}
-                    {exit.productVariant && <span className="block text-[9px] text-slate-600 mt-0.5">({exit.productVariant})</span>}
+                    {exit.productVariant && <span className="text-[10px] text-slate-600 mr-1 font-normal">({exit.productVariant})</span>}
                 </td>
                 {/* Removed separate variant td */}
                 <td>{toPersianNumerals(safeParseFloat(exit.weight).toLocaleString('fa-IR'))}</td>

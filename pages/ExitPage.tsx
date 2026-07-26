@@ -491,7 +491,7 @@ const ExitPage: React.FC = () => {
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">{farmerName}</td>
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">
                                         {productMap.get(e.productId)}
-                                        {e.productVariant && <span className="block text-xs font-normal text-slate-500 mt-0.5">{e.productVariant}</span>}
+                                        {e.productVariant && <span className="text-xs font-normal text-slate-500 mr-1">({e.productVariant})</span>}
                                     </td>
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">{toPersianNumerals(Number(e.weight || 0).toLocaleString())}</td>
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">{e.driverName || '-'}</td>
