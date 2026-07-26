@@ -299,14 +299,12 @@ export const PrintRemittanceLayout: React.FC<{
                                     <span key={productId} className="whitespace-nowrap"><span className="font-semibold">{productMap.get(productId) || productId}:</span> {toPersianNumerals(productTotals.weight.toLocaleString('fa-IR'))} کیلوگرم</span>
                                 ))}
                             </div>
-                            <div className="mt-3 pt-2">
-                                <span className="text-xs font-semibold text-slate-800">توضیحات کلی:</span>
-                                {generalDescription ? (
+                            {generalDescription && (
+                                <div className="mt-3 pt-2">
+                                    <span className="text-xs font-semibold text-slate-800">توضیحات کلی:</span>
                                     <p className="text-[10px] font-normal leading-relaxed text-slate-800 mt-1 whitespace-pre-wrap">{generalDescription}</p>
-                                ) : (
-                                    <div className="h-6 w-full border-b border-dotted border-gray-400 mt-1"></div>
-                                )}
-                            </div>
+                                </div>
+                            )}
                             {Array.from((totals as ExitTotals).byProduct.keys()).length > 1 && (
                                 <div className="text-base border-t border-slate-400 mt-2 pt-1 w-full flex justify-end"><span className="font-bold">{`جمع کل: ${toPersianNumerals((totals as ExitTotals).grandTotal.weight.toLocaleString('fa-IR'))} کیلوگرم`}</span></div>
                             )}
