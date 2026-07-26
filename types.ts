@@ -64,6 +64,7 @@ export interface Exit {
     driverName: string;
     invoiceNumber: string;
     productVariant?: string; // New field for sub-type or description
+    isCrumble?: boolean; // New field for Crumble checkbox
     createdAt: number; // timestamp
     isPageBreak?: boolean;
 }

@@ -41,6 +41,7 @@ const ExitPage: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfigItem[]>([]);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isImageImportModalOpen, setIsImageImportModalOpen] = useState(false);
+    const [printDescription, setPrintDescription] = useState('');
 
     const { settings, productMap } = useSettings();
     const tableBodyRef = useRef<HTMLTableSectionElement>(null);
@@ -55,7 +56,7 @@ const ExitPage: React.FC = () => {
 
     const initialFormState = { 
         farmerId: '', productId: settings.products.find(p => p.type === 'finishedGood')?.id || settings.products[0]?.id || '', 
-        weight: 0, driverName: '', invoiceNumber: '', productVariant: ''
+        weight: 0, driverName: '', invoiceNumber: '', productVariant: '', isCrumble: false
     };
 
     const [formData, setFormData] = useState(initialFormState);
@@ -307,7 +308,8 @@ const ExitPage: React.FC = () => {
             weight: e.weight || 0, 
             driverName: e.driverName || '', 
             invoiceNumber: e.invoiceNumber || '',
-            productVariant: e.productVariant || ''
+            productVariant: e.productVariant || '',
+            isCrumble: e.isCrumble || false
         });
         setEditMode({ active: true, id: e.id });
         setIsFormVisible(true);
@@ -394,7 +396,8 @@ const ExitPage: React.FC = () => {
                             </button>
                         )}
                         <button onClick={() => setPageBreakMode(!pageBreakMode)} className={`px-4 py-2 rounded-lg text-sm ${pageBreakMode ? 'bg-red-500 text-white' : 'bg-slate-200'}`}>تعیین صفحه</button>
-                        <button onClick={() => handlePrint('exit', filteredExits, { printDate: currentDate })} className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm">چاپ</button>
+                        <input type="text" placeholder="توضیحات چاپ..." value={printDescription} onChange={e => setPrintDescription(e.target.value)} className="p-2 border rounded-lg text-sm w-40" />
+                        <button onClick={() => handlePrint('exit', filteredExits, { printDate: currentDate, generalDescription: printDescription })} className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm">چاپ</button>
                     </div>
                 </div>
             </div>
@@ -440,7 +443,13 @@ const ExitPage: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">توضیحات / نوع (اختیاری)</label>
-                            <input onKeyDown={handleKeyDown} placeholder="مثلا: دان پلت، مش و..." value={formData.productVariant} onChange={e => setFormData({...formData, productVariant: e.target.value})} className="w-full p-2 border rounded-lg" />
+                            <div className="flex items-center gap-2">
+                                <input onKeyDown={handleKeyDown} placeholder="مثلا: دان پلت، مش و..." value={formData.productVariant} onChange={e => setFormData({...formData, productVariant: e.target.value})} className="flex-grow p-2 border rounded-lg h-[42px]" />
+                                <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap bg-slate-50 p-2 rounded-lg border h-[42px] hover:bg-slate-100 transition-colors">
+                                    <input type="checkbox" checked={formData.isCrumble || false} onChange={e => setFormData({...formData, isCrumble: e.target.checked})} className="w-4 h-4 text-sky-600 rounded cursor-pointer" />
+                                    <span className="text-sm font-bold text-slate-700">کرامبل</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 border-t pt-4">
@@ -492,6 +501,7 @@ const ExitPage: React.FC = () => {
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">
                                         {productMap.get(e.productId)}
                                         {e.productVariant && <span className="text-xs font-normal text-slate-500 mr-1">({e.productVariant})</span>}
+                                        {e.isCrumble && <span className="text-xs font-normal text-slate-500 mr-1">(کرامبل)</span>}
                                     </td>
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">{toPersianNumerals(Number(e.weight || 0).toLocaleString())}</td>
                                     <td className="p-2 border border-slate-400 font-bold text-lg text-slate-900">{e.driverName || '-'}</td>

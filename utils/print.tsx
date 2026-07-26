@@ -209,7 +209,8 @@ export const PrintRemittanceLayout: React.FC<{
     isLastPage: boolean;
     rowIndexOffset?: number;
     totals: EntryTotals | ExitTotals;
-}> = ({ type, data, printDate, isMultiPage, pageNumber, totalPages, isLastPage, rowIndexOffset = 0, totals }) => {
+    generalDescription?: string;
+}> = ({ type, data, printDate, isMultiPage, pageNumber, totalPages, isLastPage, rowIndexOffset = 0, totals, generalDescription }) => {
     const settings = loadSettings();
     const farmers = getFarmers();
     const farmerMap = new Map(farmers.map(f => [f.id, f.name]));
@@ -260,6 +261,7 @@ export const PrintRemittanceLayout: React.FC<{
                     {productMap.get(exit.productId) || exit.productId}
                     {/* Display variant here instead of separate column */}
                     {exit.productVariant && <span className="text-[10px] text-slate-600 mr-1 font-normal">({exit.productVariant})</span>}
+                    {exit.isCrumble && <span className="text-[10px] text-slate-600 mr-1 font-normal">(کرامبل)</span>}
                 </td>
                 {/* Removed separate variant td */}
                 <td>{toPersianNumerals(safeParseFloat(exit.weight).toLocaleString('fa-IR'))}</td>
@@ -297,6 +299,14 @@ export const PrintRemittanceLayout: React.FC<{
                                     <span key={productId} className="whitespace-nowrap"><span className="font-semibold">{productMap.get(productId) || productId}:</span> {toPersianNumerals(productTotals.weight.toLocaleString('fa-IR'))} کیلوگرم</span>
                                 ))}
                             </div>
+                            <div className="mt-3 pt-2">
+                                <span className="text-xs font-semibold text-slate-800">توضیحات کلی:</span>
+                                {generalDescription ? (
+                                    <p className="text-[10px] font-normal leading-relaxed text-slate-800 mt-1 whitespace-pre-wrap">{generalDescription}</p>
+                                ) : (
+                                    <div className="h-6 w-full border-b border-dotted border-gray-400 mt-1"></div>
+                                )}
+                            </div>
                             {Array.from((totals as ExitTotals).byProduct.keys()).length > 1 && (
                                 <div className="text-base border-t border-slate-400 mt-2 pt-1 w-full flex justify-end"><span className="font-bold">{`جمع کل: ${toPersianNumerals((totals as ExitTotals).grandTotal.weight.toLocaleString('fa-IR'))} کیلوگرم`}</span></div>
                             )}
@@ -333,7 +343,8 @@ const PrintPages: React.FC<{
     type: 'entry' | 'exit';
     data: Remittance[];
     printDate: Date;
-}> = ({ type, data, printDate }) => {
+    generalDescription?: string;
+}> = ({ type, data, printDate, generalDescription }) => {
     const pagesWithOffsets = useMemo(() => {
         const pages: { data: Remittance[]; offset: number }[] = [];
         let currentPage: Remittance[] = [];
@@ -383,7 +394,7 @@ const PrintPages: React.FC<{
 
     return (
         <>{pagesWithOffsets.map((page, index) => (
-            <PrintRemittanceLayout key={index} type={type} data={page.data} printDate={printDate} isMultiPage={pagesWithOffsets.length > 1} pageNumber={index + 1} totalPages={pagesWithOffsets.length} isLastPage={index === pagesWithOffsets.length - 1} rowIndexOffset={page.offset} totals={fullTotals}/>
+            <PrintRemittanceLayout key={index} type={type} data={page.data} printDate={printDate} isMultiPage={pagesWithOffsets.length > 1} pageNumber={index + 1} totalPages={pagesWithOffsets.length} isLastPage={index === pagesWithOffsets.length - 1} rowIndexOffset={page.offset} totals={fullTotals} generalDescription={generalDescription} />
         ))}</>
     );
 };
@@ -486,7 +497,7 @@ const performCleanup = () => {
 };
 window.addEventListener('afterprint', performCleanup);
 
-type PrintOptions = { printDate?: Date; startDate?: Date; endDate?: Date; reportSummary?: any; groupBy?: string; farmer?: Farmer; brood?: Brood; };
+type PrintOptions = { printDate?: Date; startDate?: Date; endDate?: Date; reportSummary?: any; groupBy?: string; farmer?: Farmer; brood?: Brood; generalDescription?: string; };
 
 export const handlePrint = (type: 'entry' | 'exit' | 'analysis' | 'report' | 'brood', data: any, options: PrintOptions) => {
     const printRoot = document.getElementById('print-root');
@@ -503,7 +514,7 @@ export const handlePrint = (type: 'entry' | 'exit' | 'analysis' | 'report' | 'br
     }
     document.head.appendChild(style);
 
-    if (type === 'entry' || type === 'exit') componentToRender = <PrintPages type={type} data={data} printDate={options.printDate!} />;
+    if (type === 'entry' || type === 'exit') componentToRender = <PrintPages type={type} data={data} printDate={options.printDate!} generalDescription={options.generalDescription} />;
     else if (type === 'analysis') componentToRender = <PrintAnalysisLayout data={data} dates={options as { startDate: Date, endDate: Date }} />;
     else if (type === 'report') componentToRender = <PrintReportLayout data={data} options={options as any} />;
     else if (type === 'brood') componentToRender = <PrintBroodLayout farmer={options.farmer!} brood={options.brood!} data={data} />;
