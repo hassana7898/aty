@@ -61,7 +61,13 @@ const PrintBroodLayout: React.FC<{
     settings.feedQuotas?.forEach(q => { if(q.quotaPerChick > 0) activeProductIds.add(q.productId); });
     data.sentData.forEach((weight, id) => { if(weight > 0) activeProductIds.add(id); });
 
-    const columns = settings.products.filter(p => p.type === 'finishedGood' && activeProductIds.has(p.id));
+    const columns = settings.products.filter(p => {
+        if (p.type !== "finishedGood") return false;
+        if (!activeProductIds.has(p.id)) return false;
+        if ((data.sentData.get(p.id) || 0) > 0) return true;
+        if (brood.activeProductsAtCreation) return brood.activeProductsAtCreation.includes(p.id);
+        return !p.isDeleted;
+    });
 
     type TransactionItem = { date: string; shortDate: string; weight: number; ref?: string; timestamp: number; };
     const productTransactions: Record<string, TransactionItem[]> = {};

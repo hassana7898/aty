@@ -85,8 +85,9 @@ const BroodDetailsCard: React.FC<BroodDetailsCardProps> = ({ farmer, brood, allE
 
 
     const calculatedData = useMemo(() => {
+        // all finished goods ever, so we dont lose past exit weights
         const finishedGoodProductIds = new Set(
-            settings.products.filter(p => p.type === 'finishedGood').map(p => p.id)
+            settings.products.filter(p => p.type === "finishedGood").map(p => p.id)
         );
 
         const sent = new Map<string, number>();
@@ -157,7 +158,13 @@ const BroodDetailsCard: React.FC<BroodDetailsCardProps> = ({ farmer, brood, allE
 
         let calculatedTotalQuota = 0;
         settings.products
-            .filter(p => p.type === 'finishedGood')
+            .filter(p => {
+                if (p.type !== "finishedGood") return false;
+                if (brood.activeProductsAtCreation) {
+                    return brood.activeProductsAtCreation.includes(p.id);
+                }
+                return !p.isDeleted;
+            })
             .forEach(product => {
                 calculatedTotalQuota += (quotaMap.get(product.id) || 0) * brood.chickCount / 1000;
             });
@@ -735,7 +742,7 @@ const BroodDetailsCard: React.FC<BroodDetailsCardProps> = ({ farmer, brood, allE
                         <span className="text-xs font-normal text-slate-400 mr-2">(برای مشاهده جزئیات روی هر محصول کلیک کنید)</span>
                     </h5>
                     <div className="grid grid-cols-1 gap-3">
-                        {settings.products.filter(p => p.type === 'finishedGood').map((product, index) => {
+                        {settings.products.filter(p => { if (p.type !== "finishedGood") return false; if ((sentData.get(p.id) || 0) > 0) return true; if (brood.activeProductsAtCreation) return brood.activeProductsAtCreation.includes(p.id); return !p.isDeleted; }).map((product, index) => {
                             const quota = (quotaMap.get(product.id) || 0) * brood.chickCount / 1000;
                             const sent = sentData.get(product.id) || 0;
                             const remaining = quota - sent;

@@ -23,7 +23,7 @@ const FarmersPage: React.FC = () => {
     const [newBroodChickCount, setNewBroodChickCount] = useState<number>(0);
     const [newBroodStartInvoiceId, setNewBroodStartInvoiceId] = useState('');
 
-    const { productMap } = useSettings();
+    const { settings, productMap } = useSettings();
 
     const fetchData = useCallback(() => {
         const farmersData = dataService.getFarmers();
@@ -172,6 +172,7 @@ const FarmersPage: React.FC = () => {
             chickCount: newBroodChickCount,
             startInvoiceId: newBroodStartInvoiceId || undefined,
             exceptionalFeed: [],
+            activeProductsAtCreation: settings.products.filter(p => p.type === 'finishedGood' && !p.isDeleted).map(p => p.id)
         };
         const updatedFarmers = farmers.map(f => 
             f.id === selectedFarmer.id 

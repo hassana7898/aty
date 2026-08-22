@@ -44,6 +44,7 @@ export interface Brood {
     finalChickenWeight?: number; // Total weight of chicken sold at the end
     includedInvoiceIds?: string[]; // Manually include exit invoice IDs
     excludedInvoiceIds?: string[]; // Manually exclude exit invoice IDs
+    activeProductsAtCreation?: string[]; // Which products were active when this brood was created
 }
 
 export interface Farmer {
