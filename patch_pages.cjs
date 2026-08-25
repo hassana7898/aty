@@ -1,29 +1,26 @@
 const fs = require('fs');
 let code = fs.readFileSync('utils/print.tsx', 'utf8');
 
-const pagesReturnRegex = /return \(\s*<>\s*\{pagesWithOffsets\.map\(\(page, index\) => \(\s*<PrintRemittanceLayout[^>]*\/>\s*\)\)\}\s*<\/>\s*\);/;
-code = code.replace(pagesReturnRegex, `
-    return (
-        <>{pagesWithOffsets.map((page, index) => {
-            const pageTotals = calculateTotals(page.data, type);
-            return (
-                <PrintRemittanceLayout 
-                    key={index} 
-                    type={type} 
-                    data={page.data} 
-                    printDate={printDate} 
-                    isMultiPage={pagesWithOffsets.length > 1} 
-                    pageNumber={index + 1} 
-                    totalPages={pagesWithOffsets.length} 
-                    isLastPage={index === pagesWithOffsets.length - 1} 
-                    rowIndexOffset={page.offset} 
-                    totals={fullTotals} 
-                    pageTotals={pageTotals}
-                    options={options}
-                />
-            );
-        })}</>
-    );
-`);
+const exportFunc = `export const calculatePrintPages = (data: Remittance[]) => {
+    const pages: { data: Remittance[]; offset: number }[] = [];
+    let currentPage: Remittance[] = [];
+    let offset = 0;
+    if (data.length === 0) return [{ data: [], offset: 0 }];
+    for (const item of data) {
+        if (item.isPageBreak && currentPage.length > 0) {
+            pages.push({ data: currentPage, offset });
+            offset += currentPage.length;
+            currentPage = [];
+        }
+        currentPage.push(item);
+    }
+    if (currentPage.length > 0) pages.push({ data: currentPage, offset });
+    return pages.length > 0 ? pages : [{ data: [], offset: 0 }];
+};
+
+const PrintPages`;
+
+code = code.replace(/const PrintPages/, exportFunc);
+code = code.replace(/    const pagesWithOffsets = useMemo\(\(\) => \{[\s\S]*?    \}, \[data\]\);/, `    const pagesWithOffsets = useMemo(() => calculatePrintPages(data), [data]);`);
 
 fs.writeFileSync('utils/print.tsx', code);

@@ -251,7 +251,10 @@ export const PrintRemittanceLayout: React.FC<{
     const settings = loadSettings();
     const farmers = getFarmers();
     const farmerMap = new Map(farmers.map(f => [f.id, f.name]));
-    const printTitle = type === 'entry' ? settings.entryPrintTitle : settings.exitPrintTitle;
+    const pageSetting = options?.pageSettings?.[pageNumber ? pageNumber - 1 : 0];
+    const printTitle = pageSetting?.title || options?.customPrintTitle || (type === 'entry' ? settings.entryPrintTitle : settings.exitPrintTitle);
+    const pageDescription = pageSetting?.description;
+    const globalDescription = isLastPage ? options?.generalDescription : null;
     const signatures = type === 'entry' ? settings.entrySignatures : settings.exitSignatures;
     const signatureNames = type === 'entry' ? settings.entrySignatureNames : settings.exitSignatureNames;
     // Fix: Show full date with weekday on printed header
@@ -376,6 +379,18 @@ export const PrintRemittanceLayout: React.FC<{
                     )}
                 </div>
             )}
+            {pageDescription && (
+                <div className="mt-3 pt-2 page-break-inside-avoid">
+                    <span className="text-xs font-semibold text-slate-800">توضیحات صفحه:</span>
+                    <p className="text-[10px] font-normal leading-relaxed text-slate-800 mt-1 whitespace-pre-wrap">{pageDescription}</p>
+                </div>
+            )}
+            {globalDescription && (
+                <div className="mt-3 pt-2 page-break-inside-avoid">
+                    <span className="text-xs font-semibold text-slate-800">توضیحات کلی گزارش:</span>
+                    <p className="text-[10px] font-normal leading-relaxed text-slate-800 mt-1 whitespace-pre-wrap">{globalDescription}</p>
+                </div>
+            )}
             <div className="print-footer">
                 <div className="sig-box flex flex-col items-center">
                     <p>{signatures[0]}</p>
@@ -401,28 +416,30 @@ export const PrintRemittanceLayout: React.FC<{
 };
 
 
+export const calculatePrintPages = (data: Remittance[]) => {
+    const pages: { data: Remittance[]; offset: number }[] = [];
+    let currentPage: Remittance[] = [];
+    let offset = 0;
+    if (data.length === 0) return [{ data: [], offset: 0 }];
+    for (const item of data) {
+        if (item.isPageBreak && currentPage.length > 0) {
+            pages.push({ data: currentPage, offset });
+            offset += currentPage.length;
+            currentPage = [];
+        }
+        currentPage.push(item);
+    }
+    if (currentPage.length > 0) pages.push({ data: currentPage, offset });
+    return pages.length > 0 ? pages : [{ data: [], offset: 0 }];
+};
+
 const PrintPages: React.FC<{
     type: 'entry' | 'exit';
     data: Remittance[];
     printDate: Date;
     options: PrintOptions;
 }> = ({ type, data, printDate, options }) => {
-    const pagesWithOffsets = useMemo(() => {
-        const pages: { data: Remittance[]; offset: number }[] = [];
-        let currentPage: Remittance[] = [];
-        let offset = 0;
-        if (data.length === 0) return [{ data: [], offset: 0 }];
-        for (const item of data) {
-            if (item.isPageBreak && currentPage.length > 0) {
-                pages.push({ data: currentPage, offset });
-                offset += currentPage.length;
-                currentPage = [];
-            }
-            currentPage.push(item);
-        }
-        if (currentPage.length > 0) pages.push({ data: currentPage, offset });
-        return pages.length > 0 ? pages : [{ data: [], offset: 0 }];
-    }, [data]);
+    const pagesWithOffsets = useMemo(() => calculatePrintPages(data), [data]);
 
     const fullTotals = useMemo(() => calculateTotals(data, type), [data, type]);
 
@@ -548,7 +565,7 @@ const performCleanup = () => {
 };
 window.addEventListener('afterprint', performCleanup);
 
-type PrintOptions = { printDate?: Date; startDate?: Date; endDate?: Date; reportSummary?: any; groupBy?: string; farmer?: Farmer; brood?: Brood; generalDescription?: string; customPrintTitle?: string; showPageTotals?: boolean; showGrandTotal?: boolean; };
+type PrintOptions = { pageSettings?: { title?: string, description?: string }[]; printDate?: Date; startDate?: Date; endDate?: Date; reportSummary?: any; groupBy?: string; farmer?: Farmer; brood?: Brood; generalDescription?: string; customPrintTitle?: string; showPageTotals?: boolean; showGrandTotal?: boolean; };
 
 export const handlePrint = (type: 'entry' | 'exit' | 'analysis' | 'report' | 'brood', data: any, options: PrintOptions) => {
     const printRoot = document.getElementById('print-root');

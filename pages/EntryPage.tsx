@@ -6,7 +6,7 @@ import * as dataService from '../services/dataService';
 import { useSettings } from '../contexts/SettingsContext';
 import { toPersianNumerals, formatWastage, formatToISODate, formatDateWithWeekday, formatCurrency, formatIBANForDisplay } from '../utils/formatters';
 import { showToast } from '../utils/helpers';
-import { handlePrint } from '../utils/print';
+import { handlePrint, calculatePrintPages } from '../utils/print';
 import Modal from '../components/Modal';
 import Swal from 'sweetalert2';
 import Sortable from 'sortablejs';
@@ -45,6 +45,7 @@ const EntryPage: React.FC = () => {
     const [customPrintTitle, setCustomPrintTitle] = useState('');
     const [showPageTotals, setShowPageTotals] = useState(false);
     const [showGrandTotal, setShowGrandTotal] = useState(true);
+    const [pageSettings, setPageSettings] = useState<{title: string, description: string}[]>([]);
 
     const { settings, productMap } = useSettings();
     const tableBodyRef = useRef<HTMLTableSectionElement>(null);
@@ -389,24 +390,51 @@ const EntryPage: React.FC = () => {
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                         <h2 className="text-xl font-bold text-slate-800 mb-4">تنظیمات چاپ</h2>
                         <div className="mb-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">تیتر دلخواه صفحه (اختیاری)</label>
-                                <input
-                                    type="text"
-                                    value={customPrintTitle}
-                                    onChange={e => setCustomPrintTitle(e.target.value)}
-                                    className="w-full p-3 border rounded-lg"
-                                    placeholder="تیتر دلخواه بالای صفحات چاپ..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">توضیحات کلی (اختیاری)</label>
-                                <textarea
-                                    value={printDescription}
-                                    onChange={e => setPrintDescription(e.target.value)}
-                                    className="w-full p-3 border rounded-lg resize-y min-h-[100px]"
-                                    placeholder="توضیحات کلی که در انتهای برگه چاپ می‌شود را اینجا وارد کنید..."
-                                ></textarea>
+                            {calculatePrintPages(filteredEntries).map((_, index) => (
+                                <div key={index} className="border p-3 rounded-lg bg-slate-50 mb-3 space-y-3">
+                                    <h3 className="font-bold text-slate-800 border-b pb-1">صفحه {index + 1}</h3>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">تیتر اختصاصی صفحه (اختیاری)</label>
+                                        <input
+                                            type="text"
+                                            value={pageSettings[index]?.title || ''}
+                                            onChange={e => {
+                                                const newSettings = [...pageSettings];
+                                                if (!newSettings[index]) newSettings[index] = { title: '', description: '' };
+                                                newSettings[index].title = e.target.value;
+                                                setPageSettings(newSettings);
+                                            }}
+                                            className="w-full p-2 border rounded-lg text-sm"
+                                            placeholder="تیتر پیش‌فرض جایگزین می‌شود..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">توضیحات اختصاصی صفحه (اختیاری)</label>
+                                        <textarea
+                                            value={pageSettings[index]?.description || ''}
+                                            onChange={e => {
+                                                const newSettings = [...pageSettings];
+                                                if (!newSettings[index]) newSettings[index] = { title: '', description: '' };
+                                                newSettings[index].description = e.target.value;
+                                                setPageSettings(newSettings);
+                                            }}
+                                            className="w-full p-2 border rounded-lg resize-y min-h-[60px] text-sm"
+                                            placeholder="توضیحاتی که در انتهای این صفحه چاپ می‌شود..."
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="border-t pt-4 mt-2">
+                                <h3 className="font-bold text-slate-800 mb-3">تنظیمات کلی:</h3>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">توضیحات انتهای کل گزارش (اختیاری)</label>
+                                    <textarea
+                                        value={printDescription}
+                                        onChange={e => setPrintDescription(e.target.value)}
+                                        className="w-full p-2 border rounded-lg resize-y min-h-[60px] text-sm mb-3"
+                                        placeholder="توضیحات کلی که در آخرین صفحه چاپ می‌شود..."
+                                    ></textarea>
+                                </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <input 
@@ -433,7 +461,7 @@ const EntryPage: React.FC = () => {
                             <button onClick={() => setIsPrintModalOpen(false)} className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold">انصراف</button>
                             <button onClick={() => {
                                 setIsPrintModalOpen(false);
-                                handlePrint('entry', filteredEntries, { printDate: currentDate, generalDescription: printDescription, customPrintTitle, showPageTotals, showGrandTotal });
+                                handlePrint('entry', filteredEntries, { printDate: currentDate, generalDescription: printDescription, customPrintTitle, pageSettings, showPageTotals, showGrandTotal });
                             }} className="px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-bold">تایید و چاپ</button>
                         </div>
                     </div>
