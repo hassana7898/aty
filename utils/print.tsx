@@ -1,4 +1,34 @@
 
+export const calculateTotals = (data: Remittance[], type: 'entry' | 'exit'): EntryTotals | ExitTotals => {
+    if (type === 'entry') {
+        const entryTotals: EntryTotals = { byProduct: new Map(), grandTotal: { count: 0, billWeight: 0, scaleWeight: 0, wastage: 0, transportCost: 0 } };
+        for (const item of data) {
+            const entry = item as Entry;
+            entryTotals.grandTotal.count++;
+            entryTotals.grandTotal.billWeight += Number(entry.billWeight) || 0;
+            entryTotals.grandTotal.scaleWeight += Number(entry.scaleWeight) || 0;
+            entryTotals.grandTotal.transportCost += Number(entry.transportCost) || 0;
+            if (!entryTotals.byProduct.has(entry.productId)) entryTotals.byProduct.set(entry.productId, { count: 0, billWeight: 0, scaleWeight: 0, transportCost: 0 });
+            const pt = entryTotals.byProduct.get(entry.productId)!;
+            pt.count++; pt.billWeight += Number(entry.billWeight) || 0; pt.scaleWeight += Number(entry.scaleWeight) || 0; pt.transportCost += Number(entry.transportCost) || 0;
+        }
+        entryTotals.grandTotal.wastage = entryTotals.grandTotal.scaleWeight - entryTotals.grandTotal.billWeight;
+        return entryTotals;
+    } else {
+        const exitTotals: ExitTotals = { byProduct: new Map(), grandTotal: { count: 0, weight: 0 } };
+        for (const item of data) {
+            const exit = item as Exit;
+            exitTotals.grandTotal.count++;
+            exitTotals.grandTotal.weight += Number(exit.weight) || 0;
+            if (!exitTotals.byProduct.has(exit.productId)) exitTotals.byProduct.set(exit.productId, { count: 0, weight: 0 });
+            const pt = exitTotals.byProduct.get(exit.productId)!;
+            pt.count++; pt.weight += Number(exit.weight) || 0;
+        }
+        return exitTotals;
+    }
+};
+
+
 import React, { useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Remittance, Settings, Entry, Exit, Farmer, Brood } from '../types';
@@ -171,19 +201,19 @@ const PrintBroodLayout: React.FC<{
                     </colgroup>
                     <thead>
                         <tr className="bg-gray-300 text-black">
-                            {columns.map(col => <th key={col.id} colSpan={2} className="border border-black p-1 font-bold">{col.name}</th>)}
+                             {columns.map(col => <th key={col.id} colSpan={2} className="border border-black p-1 font-bold">{col.name}</th>)}
                         </tr>
                         <tr className="bg-gray-100 text-black">
-                            {columns.map(col => <React.Fragment key={`${col.id}-sub`}><th className="border border-black p-1">تاریخ</th><th className="border border-black p-1">وزن</th></React.Fragment>)}
+                             {columns.map(col => <React.Fragment key={`${col.id}-sub`}><th className="border border-black p-1">تاریخ</th><th className="border border-black p-1">وزن</th></React.Fragment>)}
                         </tr>
                     </thead>
                     <tbody>
                         {maxRows === 0 ? (
                             <tr><td colSpan={columns.length * 2} className="border border-black p-2">موردی یافت نشد.</td></tr>
                         ) : (
-                            Array.from({ length: maxRows }).map((_, rowIndex) => (
+                            Array.from({ length: maxRows }).map((_, rowIndex) =>
                                 <tr key={rowIndex} className="border-b border-gray-400">
-                                    {columns.map(col => {
+                                     {columns.map(col => {
                                         const item = productTransactions[col.id][rowIndex];
                                         return (
                                             <React.Fragment key={`${col.id}-${rowIndex}`}>
@@ -193,10 +223,10 @@ const PrintBroodLayout: React.FC<{
                                         );
                                     })}
                                 </tr>
-                            ))
+                            )
                         )}
                         <tr className="bg-black text-white font-bold border-t-2 border-black">
-                            {columns.map(col => <React.Fragment key={`${col.id}-total`}><td className="border border-white p-1 text-xs">جمع</td><td className="border border-white p-1">{toPersianNumerals(columnTotals[col.id].toLocaleString())}</td></React.Fragment>)}
+                             {columns.map(col => <React.Fragment key={`${col.id}-total`}><td className="border border-white p-1 text-xs">جمع</td><td className="border border-white p-1">{toPersianNumerals(columnTotals[col.id].toLocaleString())}</td></React.Fragment>)}
                         </tr>
                     </tbody>
                 </table>
@@ -215,8 +245,9 @@ export const PrintRemittanceLayout: React.FC<{
     isLastPage: boolean;
     rowIndexOffset?: number;
     totals: EntryTotals | ExitTotals;
-    generalDescription?: string;
-}> = ({ type, data, printDate, isMultiPage, pageNumber, totalPages, isLastPage, rowIndexOffset = 0, totals, generalDescription }) => {
+    pageTotals?: EntryTotals | ExitTotals;
+    options?: PrintOptions;
+}> = ({ type, data, printDate, isMultiPage, pageNumber, totalPages, isLastPage, rowIndexOffset = 0, totals, pageTotals, options }) => {
     const settings = loadSettings();
     const farmers = getFarmers();
     const farmerMap = new Map(farmers.map(f => [f.id, f.name]));
@@ -286,24 +317,51 @@ export const PrintRemittanceLayout: React.FC<{
                 </thead>
                 <tbody>{data.map((item, index) => renderTableRow(item, index))}</tbody>
             </table>
-            {isLastPage && data.length > 0 && (
-                <div className="mt-4 pt-2 font-bold" style={{ fontSize: '10pt', borderTop: '2px solid black', paddingBottom: '2rem', pageBreakInside: 'avoid', fontFamily: "'Sahel', sans-serif" }}>
+            
+            {options?.showPageTotals && pageTotals && data.length > 0 && (
+                <div className="mt-4 pt-2 font-bold" style={{ fontSize: '10pt', borderTop: '2px solid black', paddingBottom: '0.5rem', pageBreakInside: 'avoid', fontFamily: "'Sahel', sans-serif" }}>
                     {type === 'entry' ? (
                         <div>
-                            <span className="text-base">جمع کل محصولات (بر اساس بارنامه):</span>
+                            <span className="text-base">جمع این صفحه (بر اساس بارنامه):</span>
                             <div className="flex flex-row flex-wrap justify-start gap-x-6 gap-y-1 text-sm font-normal mt-1">
-                                {Array.from((totals as EntryTotals).byProduct.entries()).map(([productId, productTotals]) => (
+                                {Array.from((pageTotals as EntryTotals).byProduct.entries()).map(([productId, productTotals]) =>
                                     <span key={productId} className="whitespace-nowrap"><span className="font-semibold">{productMap.get(productId) || productId}:</span> {toPersianNumerals(productTotals.billWeight.toLocaleString('fa-IR'))} کیلوگرم</span>
-                                ))}
+                                )}
                             </div>
                         </div>
                     ) : (
                         <div>
-                            <span className="text-base">جمع کل محصولات:</span>
+                            <span className="text-base">جمع این صفحه:</span>
                             <div className="flex flex-row flex-wrap justify-start gap-x-6 gap-y-1 text-sm font-normal mt-1">
-                                {Array.from((totals as ExitTotals).byProduct.entries()).map(([productId, productTotals]) => (
+                                {Array.from((pageTotals as ExitTotals).byProduct.entries()).map(([productId, productTotals]) =>
                                     <span key={productId} className="whitespace-nowrap"><span className="font-semibold">{productMap.get(productId) || productId}:</span> {toPersianNumerals(productTotals.weight.toLocaleString('fa-IR'))} کیلوگرم</span>
-                                ))}
+                                )}
+                            </div>
+                            {Array.from((pageTotals as ExitTotals).byProduct.keys()).length > 1 && (
+                                <div className="text-base border-t border-slate-400 mt-2 pt-1 w-full flex justify-end"><span className="font-bold">{`جمع کل این صفحه: ${toPersianNumerals((pageTotals as ExitTotals).grandTotal.weight.toLocaleString('fa-IR'))} کیلوگرم`}</span></div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+            {isLastPage && (options?.showGrandTotal !== false) && data.length > 0 && (
+                <div className="mt-4 pt-2 font-bold" style={{ fontSize: '10pt', borderTop: '2px solid black', paddingBottom: '2rem', pageBreakInside: 'avoid', fontFamily: "'Sahel', sans-serif" }}>
+                    {type === 'entry' ? (
+                        <div>
+                            <span className="text-base">جمع کل صفحات (بر اساس بارنامه):</span>
+                            <div className="flex flex-row flex-wrap justify-start gap-x-6 gap-y-1 text-sm font-normal mt-1">
+                                {Array.from((totals as EntryTotals).byProduct.entries()).map(([productId, productTotals]) =>
+                                    <span key={productId} className="whitespace-nowrap"><span className="font-semibold">{productMap.get(productId) || productId}:</span> {toPersianNumerals(productTotals.billWeight.toLocaleString('fa-IR'))} کیلوگرم</span>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <span className="text-base">جمع کل صفحات:</span>
+                            <div className="flex flex-row flex-wrap justify-start gap-x-6 gap-y-1 text-sm font-normal mt-1">
+                                {Array.from((totals as ExitTotals).byProduct.entries()).map(([productId, productTotals]) =>
+                                    <span key={productId} className="whitespace-nowrap"><span className="font-semibold">{productMap.get(productId) || productId}:</span> {toPersianNumerals(productTotals.weight.toLocaleString('fa-IR'))} کیلوگرم</span>
+                                )}
                             </div>
                             {generalDescription && (
                                 <div className="mt-3 pt-2">
@@ -347,8 +405,8 @@ const PrintPages: React.FC<{
     type: 'entry' | 'exit';
     data: Remittance[];
     printDate: Date;
-    generalDescription?: string;
-}> = ({ type, data, printDate, generalDescription }) => {
+    options: PrintOptions;
+}> = ({ type, data, printDate, options }) => {
     const pagesWithOffsets = useMemo(() => {
         const pages: { data: Remittance[]; offset: number }[] = [];
         let currentPage: Remittance[] = [];
@@ -366,40 +424,29 @@ const PrintPages: React.FC<{
         return pages.length > 0 ? pages : [{ data: [], offset: 0 }];
     }, [data]);
 
-    const fullTotals = useMemo(() => {
-        const settings = loadSettings();
-        if (type === 'entry') {
-            const entryTotals: EntryTotals = { byProduct: new Map(), grandTotal: { count: 0, billWeight: 0, scaleWeight: 0, wastage: 0, transportCost: 0 } };
-            for (const item of data) {
-                const entry = item as Entry;
-                entryTotals.grandTotal.count++;
-                entryTotals.grandTotal.billWeight += Number(entry.billWeight) || 0;
-                entryTotals.grandTotal.scaleWeight += Number(entry.scaleWeight) || 0;
-                entryTotals.grandTotal.transportCost += Number(entry.transportCost) || 0;
-                if (!entryTotals.byProduct.has(entry.productId)) entryTotals.byProduct.set(entry.productId, { count: 0, billWeight: 0, scaleWeight: 0, transportCost: 0 });
-                const pt = entryTotals.byProduct.get(entry.productId)!;
-                pt.count++; pt.billWeight += Number(entry.billWeight) || 0; pt.scaleWeight += Number(entry.scaleWeight) || 0; pt.transportCost += Number(entry.transportCost) || 0;
-            }
-            entryTotals.grandTotal.wastage = entryTotals.grandTotal.scaleWeight - entryTotals.grandTotal.billWeight;
-            return entryTotals;
-        } else {
-            const exitTotals: ExitTotals = { byProduct: new Map(), grandTotal: { count: 0, weight: 0 } };
-            for (const item of data) {
-                const exit = item as Exit;
-                exitTotals.grandTotal.count++;
-                exitTotals.grandTotal.weight += Number(exit.weight) || 0;
-                if (!exitTotals.byProduct.has(exit.productId)) exitTotals.byProduct.set(exit.productId, { count: 0, weight: 0 });
-                const pt = exitTotals.byProduct.get(exit.productId)!;
-                pt.count++; pt.weight += Number(exit.weight) || 0;
-            }
-            return exitTotals;
-        }
-    }, [data, type]);
+    const fullTotals = useMemo(() => calculateTotals(data, type), [data, type]);
 
     return (
-        <>{pagesWithOffsets.map((page, index) => (
-            <PrintRemittanceLayout key={index} type={type} data={page.data} printDate={printDate} isMultiPage={pagesWithOffsets.length > 1} pageNumber={index + 1} totalPages={pagesWithOffsets.length} isLastPage={index === pagesWithOffsets.length - 1} rowIndexOffset={page.offset} totals={fullTotals} generalDescription={generalDescription} />
-        ))}</>
+        
+        <>{pagesWithOffsets.map((page, index) => {
+            const pageTotals = calculateTotals(page.data, type);
+            return (
+                <PrintRemittanceLayout 
+                    key={index} 
+                    type={type} 
+                    data={page.data} 
+                    printDate={printDate} 
+                    isMultiPage={pagesWithOffsets.length > 1} 
+                    pageNumber={index + 1} 
+                    totalPages={pagesWithOffsets.length} 
+                    isLastPage={index === pagesWithOffsets.length - 1} 
+                    rowIndexOffset={page.offset} 
+                    totals={fullTotals} 
+                    pageTotals={pageTotals}
+                    options={options}
+                />
+            );
+        })}</>
     );
 };
 
@@ -427,9 +474,9 @@ const PrintAnalysisLayout: React.FC<{ data: any[]; dates: { startDate: Date, end
                     <tr className="bg-slate-100"><th className="p-2 bg-green-100">خرید</th><th className="p-2 bg-green-100">تولید</th><th className="p-2 bg-red-100">فروش</th><th className="p-2 bg-red-100">مصرف در تولید</th></tr>
                 </thead>
                 <tbody>
-                    {data.map(item => (
+                    {data.map(item =>
                         <tr key={item.productId} className="border-b"><td className="p-2 font-semibold">{item.productName}</td><td className="p-2 font-mono">{renderNumber(item.opening)}</td><td className="p-2 font-mono bg-green-50">{renderNumber(item.entries)}</td><td className="p-2 font-mono bg-green-50">{renderNumber(item.produced)}</td><td className="p-2 font-mono bg-red-50">{renderNumber(item.exits)}</td><td className="p-2 font-mono bg-red-50">{renderNumber(item.consumed)}</td><td className="p-2 font-mono">{renderNumber(item.adjustments)}</td><td className="p-2 font-mono font-bold">{renderNumber(item.closing)}</td></tr>
-                    ))}
+                    )}
                 </tbody>
             </table>
              <div className="print-footer">
@@ -477,9 +524,9 @@ const PrintReportLayout: React.FC<{ data: Remittance[] | GroupedResults; options
             })}</tbody>
         </table>
     );
-    const renderGroupedResults = (groupedData: GroupedResults) => (<div className="space-y-6">{Array.from(groupedData.entries()).map(([groupKey, groupData]) => (
-        <div key={groupKey} className="border rounded-lg overflow-hidden" style={{ pageBreakInside: 'avoid' }}><div className="bg-slate-100 p-3"><h3 className="text-lg font-bold text-slate-800">{groupKey}</h3><div className="text-xs text-slate-600 mt-1"><span>تعداد کل سرویس‌ها: {toPersianNumerals(groupData.summary.totalRemittances)}</span><span className="mx-2">|</span><span>جمع کل وزن: {toPersianNumerals(groupData.summary.totalWeight.toLocaleString())} کیلوگرم</span></div><div className="mt-2 pt-2 border-t border-slate-200"><h4 className="text-sm font-semibold">خلاصه محصولات:</h4><div className="text-xs mt-1 space-y-1">{Array.from(groupData.summary.productSummary.entries()).map(([productName, summary]) => (<div key={productName}><strong>{productName}:</strong> {toPersianNumerals(summary.totalWeight.toLocaleString())} کیلوگرم ({toPersianNumerals(summary.count)} سرویس)</div>))}</div></div></div><div className="p-2">{renderFlatTable(groupData.items)}</div></div>
-    ))}</div>);
+    const renderGroupedResults = (groupedData: GroupedResults) => (<div className="space-y-6">{Array.from(groupedData.entries()).map(([groupKey, groupData]) =>
+        <div key={groupKey} className="border rounded-lg overflow-hidden" style={{ pageBreakInside: 'avoid' }}><div className="bg-slate-100 p-3"><h3 className="text-lg font-bold text-slate-800">{groupKey}</h3><div className="text-xs text-slate-600 mt-1"><span>تعداد کل سرویس‌ها: {toPersianNumerals(groupData.summary.totalRemittances)}</span><span className="mx-2">|</span><span>جمع کل وزن: {toPersianNumerals(groupData.summary.totalWeight.toLocaleString())} کیلوگرم</span></div><div className="mt-2 pt-2 border-t border-slate-200"><h4 className="text-sm font-semibold">خلاصه محصولات:</h4><div className="text-xs mt-1 space-y-1">{Array.from(groupData.summary.productSummary.entries()).map(([productName, summary]) =><div key={productName}><strong>{productName}:</strong> {toPersianNumerals(summary.totalWeight.toLocaleString())} کیلوگرم ({toPersianNumerals(summary.count)} سرویس)</div>)}</div></div></div><div className="p-2">{renderFlatTable(groupData.items)}</div></div>
+    )}</div>);
     return (
         <div className="print-page"><table><thead><tr><th colSpan={11} style={{ border: 'none', paddingBottom: '0.5rem' }}>{header}</th></tr></thead></table>
             {options.reportSummary && (<div className="my-4 p-4 bg-slate-50 rounded-lg text-sm" style={{ pageBreakInside: 'avoid' }}><h3 className="text-base font-bold text-slate-800 mb-2">خلاصه کلی گزارش</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div><strong>حواله ورود:</strong> {toPersianNumerals(options.reportSummary.entryCount)}</div><div><strong>حواله خروج:</strong> {toPersianNumerals(options.reportSummary.exitCount)}</div><div><strong>جمع کل بارنامه:</strong> {toPersianNumerals(options.reportSummary.totalBillWeight.toLocaleString())} kg</div><div><strong>جمع کل باسکول:</strong> {toPersianNumerals(options.reportSummary.totalScaleWeight.toLocaleString())} kg</div><div><strong>جمع کل افت:</strong> {formatWastage(options.reportSummary.totalScaleWeight - options.reportSummary.totalBillWeight)} kg</div><div><strong>جمع کل خروج:</strong> {toPersianNumerals(options.reportSummary.totalExitWeight.toLocaleString())} kg</div><div className="col-span-2"><strong>جمع کل کرایه:</strong> {formatCurrency(options.reportSummary.totalTransportCost)}</div></div></div>)}
@@ -501,7 +548,7 @@ const performCleanup = () => {
 };
 window.addEventListener('afterprint', performCleanup);
 
-type PrintOptions = { printDate?: Date; startDate?: Date; endDate?: Date; reportSummary?: any; groupBy?: string; farmer?: Farmer; brood?: Brood; generalDescription?: string; };
+type PrintOptions = { printDate?: Date; startDate?: Date; endDate?: Date; reportSummary?: any; groupBy?: string; farmer?: Farmer; brood?: Brood; generalDescription?: string; customPrintTitle?: string; showPageTotals?: boolean; showGrandTotal?: boolean; };
 
 export const handlePrint = (type: 'entry' | 'exit' | 'analysis' | 'report' | 'brood', data: any, options: PrintOptions) => {
     const printRoot = document.getElementById('print-root');
@@ -518,7 +565,7 @@ export const handlePrint = (type: 'entry' | 'exit' | 'analysis' | 'report' | 'br
     }
     document.head.appendChild(style);
 
-    if (type === 'entry' || type === 'exit') componentToRender = <PrintPages type={type} data={data} printDate={options.printDate!} generalDescription={options.generalDescription} />;
+    if (type === 'entry' || type === 'exit') componentToRender = <PrintPages type={type} data={data} printDate={options.printDate!} options={options} />;
     else if (type === 'analysis') componentToRender = <PrintAnalysisLayout data={data} dates={options as { startDate: Date, endDate: Date }} />;
     else if (type === 'report') componentToRender = <PrintReportLayout data={data} options={options as any} />;
     else if (type === 'brood') componentToRender = <PrintBroodLayout farmer={options.farmer!} brood={options.brood!} data={data} />;
