@@ -191,6 +191,32 @@ const PrintBroodLayout: React.FC<{
                                 </tr>
                             );
                         })}
+                        <tr className="bg-gray-300 font-bold">
+                            <td className="border border-black p-1">جمع کل</td>
+                            <td className="border border-black p-1">
+                                {toPersianNumerals(Math.round(columns.reduce((acc, p) => acc + ((quotaMap.get(p.id) || 0) * brood.chickCount / 1000), 0)).toLocaleString())}
+                            </td>
+                            <td className="border border-black p-1">
+                                {toPersianNumerals(Math.round(columns.reduce((acc, p) => acc + (data.sentData.get(p.id) || 0), 0)).toLocaleString())}
+                            </td>
+                            <td className="border border-black p-1" dir="rtl">
+                                {(() => {
+                                    const totalQ = columns.reduce((acc, p) => acc + ((quotaMap.get(p.id) || 0) * brood.chickCount / 1000), 0);
+                                    const totalS = columns.reduce((acc, p) => acc + (data.sentData.get(p.id) || 0), 0);
+                                    const rem = totalQ - totalS;
+                                    return rem < 0 
+                                        ? `${toPersianNumerals(Math.abs(Math.round(rem)).toLocaleString())} (اضافه)`
+                                        : toPersianNumerals(Math.round(rem).toLocaleString());
+                                })()}
+                            </td>
+                            <td className="border border-black p-1">
+                                {(() => {
+                                    const totalQ = columns.reduce((acc, p) => acc + ((quotaMap.get(p.id) || 0) * brood.chickCount / 1000), 0);
+                                    const totalS = columns.reduce((acc, p) => acc + (data.sentData.get(p.id) || 0), 0);
+                                    return toPersianNumerals(totalQ > 0 ? Math.round((totalS / totalQ) * 100) : 0) + '%';
+                                })()}
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -247,7 +273,7 @@ const PrintBroodLayout: React.FC<{
                         <tr className="bg-black text-white font-bold border-t-2 border-black">
                              {columns.map(col => <React.Fragment key={`${col.id}-total`}>
                                 <td colSpan={2} className="border border-white p-1 text-xs">جمع</td>
-                                <td className="border border-white p-1">{toPersianNumerals(columnTotals[col.id].toLocaleString())}</td>
+                                <td className="border border-white p-1">{toPersianNumerals((columnTotals[col.id] || 0).toLocaleString())}</td>
                              </React.Fragment>)}
                         </tr>
                     </tbody>
