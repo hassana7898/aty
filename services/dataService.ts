@@ -173,8 +173,11 @@ export const addInvoice = async (invoiceData: any, type: 'entry' | 'exit'): Prom
     const currentOrder = JSON.parse(localStorage.getItem(key) || '[]');
     localStorage.setItem(key, JSON.stringify([...currentOrder, id]));
     
-    if (type === 'exit' && newInvoice.driverName?.trim()) {
+    if (newInvoice.driverName?.trim()) {
         addDriver(newInvoice.driverName);
+    }
+    if (type === 'entry' && newInvoice.origin?.trim()) {
+        addOrigin(newInvoice.origin);
     }
     await logAction('created', type, newInvoice);
 };
@@ -205,7 +208,8 @@ export const updateInvoice = async (id: string, updates: any): Promise<void> => 
         if (!(updateKeys.length === 1 && updateKeys[0] === 'isPageBreak')) {
             await logAction('updated', type, updated, original.date, updated.date);
         }
-        if (type === 'exit' && updated.driverName?.trim()) addDriver(updated.driverName);
+        if (updated.driverName?.trim()) addDriver(updated.driverName);
+        if (type === 'entry' && updated.origin?.trim()) addOrigin(updated.origin);
     }
 };
 
@@ -615,4 +619,23 @@ export const mergeProducts = async (sourceId: string, targetId: string): Promise
 
 export const mergeDrivers = async (sourceName: string, targetName: string): Promise<number> => {
     return renameDriver(sourceName, targetName); 
+};
+export const getOrigins = (): string[] => {
+    const str = localStorage.getItem('origins');
+    if (!str) return [];
+    try {
+        const data = JSON.parse(str);
+        return Array.isArray(data) ? data : [];
+    } catch { return []; }
+};
+export const saveOrigins = (origins: string[]): void => {
+    localStorage.setItem('origins', JSON.stringify(origins));
+};
+export const addOrigin = (name: string): void => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const origins = getOrigins();
+    if (!origins.includes(trimmed)) {
+        saveOrigins([...origins, trimmed]);
+    }
 };

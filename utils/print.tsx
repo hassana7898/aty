@@ -99,20 +99,26 @@ const PrintBroodLayout: React.FC<{
         return !p.isDeleted;
     });
 
-    type TransactionItem = { date: string; shortDate: string; weight: number; ref?: string; timestamp: number; };
+    type TransactionItem = { date: string; shortDate: string; weight: number; ref?: string; timestamp: number; variant?: string; };
     const productTransactions: Record<string, TransactionItem[]> = {};
     let maxRows = 0;
 
     columns.forEach(col => {
         const invoices = data.relevantInvoices
             .filter(inv => inv.productId === col.id)
-            .map(inv => ({
-                date: inv.date,
-                shortDate: getShortDate(inv.date),
-                weight: safeParseFloat(inv.weight),
-                ref: inv.invoiceNumber,
-                timestamp: inv.createdAt || new Date(inv.date).getTime()
-            }));
+            .map(inv => {
+                let variant = '';
+                if (inv.productVariant) variant += inv.productVariant;
+                if (inv.isCrumble) variant += (variant ? ' ' : '') + '(کرامبل)';
+                return {
+                    date: inv.date,
+                    shortDate: getShortDate(inv.date),
+                    weight: safeParseFloat(inv.weight),
+                    ref: inv.invoiceNumber,
+                    timestamp: inv.createdAt || new Date(inv.date).getTime(),
+                    variant: variant
+                };
+            });
         const manualFeeds = (brood.exceptionalFeed || [])
             .filter(feed => feed.productId === col.id)
             .map(feed => ({
@@ -194,22 +200,27 @@ const PrintBroodLayout: React.FC<{
                     <colgroup>
                         {columns.map(col => (
                             <React.Fragment key={col.id}>
-                                <col style={{ width: `${100 / columns.length * 0.35}%` }} />
-                                <col style={{ width: `${100 / columns.length * 0.65}%` }} />
+                                <col style={{ width: `${100 / columns.length * 0.25}%` }} />
+                                <col style={{ width: `${100 / columns.length * 0.25}%` }} />
+                                <col style={{ width: `${100 / columns.length * 0.5}%` }} />
                             </React.Fragment>
                         ))}
                     </colgroup>
                     <thead>
                         <tr className="bg-gray-300 text-black">
-                             {columns.map(col => <th key={col.id} colSpan={2} className="border border-black p-1 font-bold">{col.name}</th>)}
+                             {columns.map(col => <th key={col.id} colSpan={3} className="border border-black p-1 font-bold">{col.name}</th>)}
                         </tr>
                         <tr className="bg-gray-100 text-black">
-                             {columns.map(col => <React.Fragment key={`${col.id}-sub`}><th className="border border-black p-1">تاریخ</th><th className="border border-black p-1">وزن</th></React.Fragment>)}
+                             {columns.map(col => <React.Fragment key={`${col.id}-sub`}>
+                                <th className="border border-black p-1 text-[10px]">تاریخ</th>
+                                <th className="border border-black p-1 text-[10px]">حواله/نوع</th>
+                                <th className="border border-black p-1 text-[10px]">وزن(kg)</th>
+                             </React.Fragment>)}
                         </tr>
                     </thead>
                     <tbody>
                         {maxRows === 0 ? (
-                            <tr><td colSpan={columns.length * 2} className="border border-black p-2">موردی یافت نشد.</td></tr>
+                            <tr><td colSpan={columns.length * 3} className="border border-black p-2">موردی یافت نشد.</td></tr>
                         ) : (
                             Array.from({ length: maxRows }).map((_, rowIndex) =>
                                 <tr key={rowIndex} className="border-b border-gray-400">
@@ -218,6 +229,14 @@ const PrintBroodLayout: React.FC<{
                                         return (
                                             <React.Fragment key={`${col.id}-${rowIndex}`}>
                                                 <td className="border-l border-r border-gray-400 p-1 text-center bg-white" style={{ direction: 'ltr' }}>{item ? toPersianNumerals(item.shortDate) : ''}</td>
+                                                <td className="border-l border-r border-gray-400 p-1 text-center bg-white text-[9px] whitespace-nowrap overflow-hidden text-ellipsis">
+                                                    {item ? (
+                                                        <div className="flex flex-col items-center">
+                                                            <span>{toPersianNumerals(item.ref || '-')}</span>
+                                                            {item.variant && <span className="text-[8px] text-gray-500">{item.variant}</span>}
+                                                        </div>
+                                                    ) : ''}
+                                                </td>
                                                 <td className="border-l border-r border-black p-1 font-bold text-black bg-white">{item ? toPersianNumerals(item.weight.toLocaleString()) : ''}</td>
                                             </React.Fragment>
                                         );
@@ -226,7 +245,10 @@ const PrintBroodLayout: React.FC<{
                             )
                         )}
                         <tr className="bg-black text-white font-bold border-t-2 border-black">
-                             {columns.map(col => <React.Fragment key={`${col.id}-total`}><td className="border border-white p-1 text-xs">جمع</td><td className="border border-white p-1">{toPersianNumerals(columnTotals[col.id].toLocaleString())}</td></React.Fragment>)}
+                             {columns.map(col => <React.Fragment key={`${col.id}-total`}>
+                                <td colSpan={2} className="border border-white p-1 text-xs">جمع</td>
+                                <td className="border border-white p-1">{toPersianNumerals(columnTotals[col.id].toLocaleString())}</td>
+                             </React.Fragment>)}
                         </tr>
                     </tbody>
                 </table>

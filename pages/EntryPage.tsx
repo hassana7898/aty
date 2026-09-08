@@ -33,6 +33,7 @@ const EntryPage: React.FC = () => {
     const [pageBreakMode, setPageBreakMode] = useState(false);
     const [editMode, setEditMode] = useState<{ active: boolean, id: string | null }>({ active: false, id: null });
     const [driverNames, setDriverNames] = useState<string[]>([]);
+    const [originNames, setOriginNames] = useState<string[]>([]);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkMoveModalOpen, setIsBulkMoveModalOpen] = useState(false);
@@ -88,6 +89,7 @@ const EntryPage: React.FC = () => {
         const data = dataService.getInvoicesByDate<Entry>('entry', currentDate);
         setEntries(data);
         setDriverNames(dataService.getDrivers());
+        setOriginNames(dataService.getOrigins ? dataService.getOrigins() : []);
         setHasUnsavedChanges(false);
         setSelectedIds(new Set());
         setPageBreakMode(false);
@@ -243,7 +245,7 @@ const EntryPage: React.FC = () => {
         setIsBulkMoveModalOpen(true);
     };
 
-    const handleSave = async (e?: React.FormEvent) => {
+    const handleSave = async (e?: React.FormEvent, keepSellerInfo: boolean = false) => {
         if (e) e.preventDefault();
 
         if (formData.driverIBAN && !ibanValidation.isValid) {
@@ -260,7 +262,27 @@ const EntryPage: React.FC = () => {
             } else {
                 await dataService.addInvoice({ ...formData, date: formatToISODate(currentDate) } as any, 'entry');
                 showToast('ثبت شد.');
-                setFormData({ ...initialFormState, productId: formData.productId });
+                if (keepSellerInfo) {
+                    setFormData({
+                        ...formData,
+                        productId: settings.products[0]?.id || '',
+                        billWeight: 0,
+                        scaleWeight: 0,
+                        wastage: 0
+                    });
+                } else {
+                    if (keepSellerInfo) {
+                    setFormData({
+                        ...formData,
+                        productId: settings.products[0]?.id || '',
+                        billWeight: 0,
+                        scaleWeight: 0,
+                        wastage: 0
+                    });
+                } else {
+                    setFormData({ ...initialFormState, productId: formData.productId });
+                }
+                }
                 setTimeout(() => firstInputRef.current?.focus(), 100);
             }
             fetchEntries();
@@ -315,6 +337,7 @@ const EntryPage: React.FC = () => {
     return (
         <div className="space-y-4">
             <datalist id="driver-list">{driverNames.map(n => <option key={n} value={n} />)}</datalist>
+            <datalist id="origin-list">{originNames.map(n => <option key={n} value={n} />)}</datalist>
             <Modal isOpen={isBulkMoveModalOpen} onClose={() => setIsBulkMoveModalOpen(false)} title="انتقال حواله به تاریخ دیگر" footer={<><button onClick={() => setIsBulkMoveModalOpen(false)} className="px-4 py-2 text-slate-600">لغو</button><button onClick={handleBulkMove} className="bg-orange-500 text-white px-4 py-2 rounded-lg">تایید و انتقال</button></>}>
                 <div className="space-y-4">
                     <p className="text-sm">تاریخ مقصد برای جابجایی {toPersianNumerals(selectedIds.size)} حواله:</p>
@@ -485,7 +508,7 @@ const EntryPage: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">مبدا</label>
-                            <input onKeyDown={handleKeyDown} placeholder="مبدا بارگیری" value={formData.origin} onChange={e => setFormData({...formData, origin: e.target.value})} className="w-full p-2 border rounded-lg" />
+                            <input list="origin-list" onKeyDown={handleKeyDown} placeholder="مبدا بارگیری" value={formData.origin} onChange={e => setFormData({...formData, origin: e.target.value})} className="w-full p-2 border rounded-lg" />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
@@ -556,6 +579,9 @@ const EntryPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 border-t pt-4">
+                        {!editMode.active && (
+                            <button type="button" onClick={(e) => handleSave(e as any, true)} className="bg-sky-500 text-white px-4 py-2 rounded-lg font-bold">ثبت و افزودن محصول دیگر</button>
+                        )}
                         <button type="submit" className="bg-green-500 text-white px-8 py-2 rounded-lg font-bold">ذخیره (Enter)</button>
                         <button type="button" onClick={() => setIsFormVisible(false)} className="bg-gray-400 text-white px-8 py-2 rounded-lg">انصراف</button>
                     </div>
